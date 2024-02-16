@@ -1,1 +1,1 @@
-# AayushKiMehnatStudy
+# AayushKiMehnat
