@@ -1,24 +1,49 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, getDocFromServer, doc } from 'firebase/firestore';
-import firebaseConfigJson from '../firebase-applet-config.json';
 
-// Use the JSON config directly as per strict user instruction
-const firebaseConfig = {
-  apiKey: firebaseConfigJson.apiKey,
-  authDomain: firebaseConfigJson.authDomain,
-  projectId: firebaseConfigJson.projectId,
-  storageBucket: firebaseConfigJson.storageBucket,
-  messagingSenderId: firebaseConfigJson.messagingSenderId,
-  appId: firebaseConfigJson.appId,
-  measurementId: firebaseConfigJson.measurementId,
-};
+// Initialize Firebase with environment variables or local JSON config
+// This allows the project to be public without exposing secrets in the JSON file
+let firebaseConfig: any;
+let firestoreDatabaseId: string | undefined;
+
+// Prioritize environment variables (VITE_ prefix is required for client-side access in Vite)
+if (import.meta.env.VITE_FIREBASE_API_KEY) {
+  firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  };
+  firestoreDatabaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
+} else {
+  // Fallback to local JSON config if environment variables are not set
+  try {
+    // We use a dynamic import here so the build doesn't break if the file is missing in a public repo
+    // @ts-ignore
+    const config = await import('../firebase-applet-config.json');
+    firebaseConfig = config.default;
+    firestoreDatabaseId = config.default.firestoreDatabaseId;
+  } catch (error) {
+    console.warn("Firebase configuration not found in environment variables or firebase-applet-config.json");
+    // Provide a dummy config to prevent the app from crashing during build
+    firebaseConfig = {
+      apiKey: "missing",
+      authDomain: "missing",
+      projectId: "missing",
+      appId: "missing"
+    };
+  }
+}
 
 const app = initializeApp(firebaseConfig);
 
 // Use the databaseId from the config if it's not "(default)"
-export const db = firebaseConfigJson.firestoreDatabaseId && firebaseConfigJson.firestoreDatabaseId !== '(default)'
-  ? getFirestore(app, firebaseConfigJson.firestoreDatabaseId)
+export const db = firestoreDatabaseId && firestoreDatabaseId !== '(default)'
+  ? getFirestore(app, firestoreDatabaseId)
   : getFirestore(app);
 
 export const auth = getAuth(app);
