@@ -1,0 +1,288 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: years
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - description: string (optional, 0-500 chars)
+    //   - order: number (optional)
+    //
+    // Collection: subjects
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - code: string (required, 1-20 chars)
+    //   - yearId: string (required, ref to years)
+    //   - description: string (optional, 0-500 chars)
+    //   - order: number (optional)
+    //
+    // Collection: resources
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - subjectId: string (required, ref to subjects)
+    //   - type: string (required, enum: notes, books, assignment, paper, lab, other)
+    //   - url: string (required, valid URL)
+    //   - description: string (optional, 0-1000 chars)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: users
+    // Fields:
+    //   - uid: string (required, matches auth.uid)
+    //   - email: string (required, valid email)
+    //   - role: string (required, enum: admin, user)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //
+    // Collection: news
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - content: string (required, 1-5000 chars)
+    //   - type: string (required, enum: announcement, update, event)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: jobs
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - company: string (required, 1-200 chars)
+    //   - type: string (required, enum: government, private, internship)
+    //   - location: string (required, 1-200 chars)
+    //   - link: string (required, valid URL)
+    //   - description: string (required, 1-5000 chars)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: extra_resources
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - link: string (required, valid URL)
+    //   - category: string (required, 1-100 chars)
+    //   - description: string (optional, 0-1000 chars)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: messages (Contact form)
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - email: string (required, valid email)
+    //   - subject: string (required, 1-200 chars)
+    //   - message: string (required, 1-5000 chars)
+    //   - createdAt: timestamp (required)
+    //   - read: bool (optional)
+    //
+    // Collection: conversations
+    // Fields:
+    //   - userName: string (required)
+    //   - userEmail: string (required)
+    //   - lastMessage: string (required)
+    //   - lastUpdatedAt: timestamp (required)
+    //   - unreadCountAdmin: int (optional)
+    //   - unreadCountUser: int (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (
+          (request.auth.token.email == "aayushsharma4437@gmail.com" && request.auth.token.email_verified == true) ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidYear(data) {
+      return hasOnlyAllowedFields(['id', 'name', 'description', 'order']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             (!('order' in data) || data.order is number);
+    }
+
+    function isValidSubject(data) {
+      return hasOnlyAllowedFields(['id', 'name', 'code', 'yearId', 'description', 'order']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.code is string && data.code.size() > 0 && data.code.size() <= 20 &&
+             data.yearId is string &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             (!('order' in data) || data.order is number);
+    }
+
+    function isValidResource(data) {
+      return hasOnlyAllowedFields(['id', 'title', 'subjectId', 'type', 'link', 'description', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.subjectId is string &&
+             data.type in ['notes', 'books', 'assignment', 'paper', 'lab', 'other'] &&
+             isValidUrl(data.link) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'role', 'displayName', 'photoURL', 'favorites']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'user'] &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('photoURL' in data) || isValidUrl(data.photoURL)) &&
+             (!('favorites' in data) || (data.favorites is list && data.favorites.size() <= 1000));
+    }
+
+    function isValidNews(data) {
+      return hasOnlyAllowedFields(['id', 'title', 'content', 'type', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 5000 &&
+             data.type in ['announcement', 'update', 'event'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidJob(data) {
+      return hasOnlyAllowedFields(['id', 'title', 'company', 'type', 'location', 'link', 'description', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.company is string && data.company.size() > 0 && data.company.size() <= 200 &&
+             data.type in ['government', 'private', 'internship'] &&
+             data.location is string && data.location.size() > 0 && data.location.size() <= 200 &&
+             isValidUrl(data.link) &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 5000 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidExtraResource(data) {
+      return hasOnlyAllowedFields(['title', 'link', 'category', 'description', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             isValidUrl(data.link) &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return hasOnlyAllowedFields(['name', 'email', 'subject', 'message', 'createdAt', 'read']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             isValidEmail(data.email) &&
+             data.subject is string && data.subject.size() > 0 && data.subject.size() <= 200 &&
+             data.message is string && data.message.size() > 0 && data.message.size() <= 5000 &&
+             data.createdAt is timestamp &&
+             (!('read' in data) || data.read is bool);
+    }
+
+    function isValidConversation(data) {
+      return hasOnlyAllowedFields(['userName', 'userEmail', 'lastMessage', 'lastUpdatedAt', 'unreadCountAdmin', 'unreadCountUser']) &&
+             data.userName is string &&
+             isValidEmail(data.userEmail) &&
+             data.lastMessage is string &&
+             data.lastUpdatedAt is timestamp &&
+             (!('unreadCountAdmin' in data) || data.unreadCountAdmin is number) &&
+             (!('unreadCountUser' in data) || data.unreadCountUser is number);
+    }
+
+    function isValidChatMessage(data) {
+      return hasOnlyAllowedFields(['text', 'senderId', 'createdAt']) &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 5000 &&
+             data.senderId is string && data.senderId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Public Collections (Everyone can read, only Admin can write)
+    match /years/{yearId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidYear(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidSubject(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /resources/{resourceId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidResource(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidNews(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidJob(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /extra_resources/{resourceId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidExtraResource(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Private Collections (User specific)
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Users can only set their role to 'user' unless they are already an admin
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      (request.resource.data.role == 'user' || isAdmin());
+      // Users cannot change their own role or uid
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
+                        request.resource.data.role == resource.data.role && uidNotModified()) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /conversations/{convId} {
+      allow read: if isOwner(convId) || isAdmin();
+      // Only the user themselves or an admin can create/update a conversation
+      allow create, update: if (isOwner(convId) || isAdmin()) && isValidConversation(request.resource.data);
+      allow delete: if isAdmin();
+      
+      match /messages/{messageId} {
+        allow read: if isOwner(convId) || isAdmin();
+        allow create: if isAuthenticated() && (isOwner(convId) || isAdmin()) && isValidChatMessage(request.resource.data);
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // Contact Messages
+    match /messages/{messageId} {
+      allow read: if isAdmin();
+      allow create: if isValidMessage(request.resource.data);
+      allow update: if isAdmin() && isValidMessage(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}

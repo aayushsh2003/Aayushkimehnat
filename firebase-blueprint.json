@@ -1,0 +1,330 @@
+{
+  "entities": {
+    "year": {
+      "title": "Year",
+      "description": "Academic year (e.g., 1st Year, 2nd Year)",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the year"
+        }
+      },
+      "required": ["name"]
+    },
+    "subject": {
+      "title": "Subject",
+      "description": "Academic subject",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the subject"
+        },
+        "code": {
+          "type": "string",
+          "description": "Subject code (e.g., CS-101)"
+        },
+        "yearId": {
+          "type": "string",
+          "description": "ID of the associated year"
+        }
+      },
+      "required": ["name", "yearId"]
+    },
+    "resource": {
+      "title": "Resource",
+      "description": "Academic resource (notes, books, etc.)",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the resource"
+        },
+        "subjectId": {
+          "type": "string",
+          "description": "ID of the associated subject"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["notes", "books", "assignment", "paper", "lab", "other"],
+          "description": "Type of resource"
+        },
+        "link": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the resource"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["title", "subjectId", "type", "link", "createdAt"]
+    },
+    "user": {
+      "title": "User",
+      "description": "Application user",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's full name"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL to user's profile picture"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "user"],
+          "description": "User role"
+        },
+        "favorites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of favorite resource IDs"
+        }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "news": {
+      "title": "News",
+      "description": "News and announcements",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the news"
+        },
+        "content": {
+          "type": "string",
+          "description": "Content of the news"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["announcement", "update", "event"],
+          "description": "Type of news"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["title", "content", "type", "createdAt"]
+    },
+    "message": {
+      "title": "Message",
+      "description": "Contact form submission",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the sender"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email of the sender"
+        },
+        "subject": {
+          "type": "string",
+          "description": "Subject of the message"
+        },
+        "message": {
+          "type": "string",
+          "description": "Content of the message"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission timestamp"
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Whether the message has been read by an admin"
+        }
+      },
+      "required": ["name", "email", "subject", "message", "createdAt"]
+    },
+    "conversation": {
+      "title": "Conversation",
+      "description": "Real-time chat conversation",
+      "type": "object",
+      "properties": {
+        "userName": {
+          "type": "string",
+          "description": "Name of the user"
+        },
+        "userEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Email of the user"
+        },
+        "lastMessage": {
+          "type": "string",
+          "description": "Last message in the conversation"
+        },
+        "lastUpdatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "unreadCountAdmin": {
+          "type": "integer",
+          "description": "Number of unread messages for admin"
+        },
+        "unreadCountUser": {
+          "type": "integer",
+          "description": "Number of unread messages for user"
+        }
+      },
+      "required": ["userName", "userEmail", "lastMessage", "lastUpdatedAt"]
+    },
+    "chatMessage": {
+      "title": "Chat Message",
+      "description": "Single message in a conversation",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Content of the message"
+        },
+        "senderId": {
+          "type": "string",
+          "description": "UID of the sender"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["text", "senderId", "createdAt"]
+    },
+    "job": {
+      "title": "Job",
+      "description": "Job opening (Govt, Private, or Internship)",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Job title"
+        },
+        "company": {
+          "type": "string",
+          "description": "Company name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["government", "private", "internship"],
+          "description": "Type of job"
+        },
+        "location": {
+          "type": "string",
+          "description": "Job location"
+        },
+        "link": {
+          "type": "string",
+          "format": "uri",
+          "description": "Application link"
+        },
+        "description": {
+          "type": "string",
+          "description": "Job description"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["title", "company", "type", "location", "link", "description", "createdAt"]
+    },
+    "extraResource": {
+      "title": "Extra Resource",
+      "description": "Additional academic resource (extra links, tools, etc.)",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the resource"
+        },
+        "link": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the resource"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the resource (e.g., Tools, Websites, YouTube)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description of the resource"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["title", "link", "category", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/years/{yearId}": {
+      "schema": "year",
+      "description": "Collection of academic years"
+    },
+    "/subjects/{subjectId}": {
+      "schema": "subject",
+      "description": "Collection of subjects"
+    },
+    "/resources/{resourceId}": {
+      "schema": "resource",
+      "description": "Collection of academic resources"
+    },
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Collection of user profiles"
+    },
+    "/news/{newsId}": {
+      "schema": "news",
+      "description": "Collection of news and announcements"
+    },
+    "/messages/{messageId}": {
+      "schema": "message",
+      "description": "Collection of contact form messages"
+    },
+    "/conversations/{convId}": {
+      "schema": "conversation",
+      "description": "Collection of chat conversations"
+    },
+    "/conversations/{convId}/messages/{messageId}": {
+      "schema": "chatMessage",
+      "description": "Subcollection of messages in a conversation"
+    },
+    "/jobs/{jobId}": {
+      "schema": "job",
+      "description": "Collection of job openings"
+    },
+    "/extra_resources/{resourceId}": {
+      "schema": "extraResource",
+      "description": "Collection of extra academic resources"
+    }
+  }
+}

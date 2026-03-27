@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://aayushkimehnat.vercel.app/sitemap.xml
