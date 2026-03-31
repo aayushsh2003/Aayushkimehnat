@@ -28,6 +28,31 @@
         "yearId": {
           "type": "string",
           "description": "ID of the associated year"
+        },
+        "syllabus": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "unit": {
+                "type": "string",
+                "description": "Unit name (e.g., Unit 1)"
+              },
+              "title": {
+                "type": "string",
+                "description": "Title of the unit"
+              },
+              "topics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of topics in the unit"
+              }
+            },
+            "required": ["unit", "title", "topics"]
+          },
+          "description": "Subject syllabus units"
         }
       },
       "required": ["name", "yearId"]

@@ -3,21 +3,97 @@ import { useAppStore } from '../store/useAppStore';
 import { db } from '../firebase';
 import { collection, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Trash2, BookOpen, AlertCircle, CheckCircle2, ChevronDown, Edit2, X, Eye } from 'lucide-react';
+import { Plus, Trash2, BookOpen, AlertCircle, CheckCircle2, ChevronDown, Edit2, X, Eye, ListPlus, Minus, Search } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useNavigate } from 'react-router-dom';
 
 export const AdminSubjects = () => {
   const navigate = useNavigate();
   const { years, subjects, loading, updateSubject } = useAppStore();
-  const [newSubject, setNewSubject] = React.useState({ name: '', code: '', yearId: '' });
+  const [newSubject, setNewSubject] = React.useState({ name: '', code: '', yearId: '', syllabus: [] as any[] });
   const [editingSubject, setEditingSubject] = React.useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [message, setMessage] = React.useState({ text: '', type: '' });
+  const [searchTerm, setSearchTerm] = React.useState('');
   const [deleteModal, setDeleteModal] = React.useState<{ isOpen: boolean; id: string }>({
     isOpen: false,
     id: ''
   });
+
+  const handleAddUnit = (isEditing: boolean) => {
+    const newUnit = { unit: `Unit ${((isEditing ? editingSubject.syllabus : newSubject.syllabus) || []).length + 1}`, title: '', topics: [''] };
+    if (isEditing) {
+      setEditingSubject({
+        ...editingSubject,
+        syllabus: [...(editingSubject.syllabus || []), newUnit]
+      });
+    } else {
+      setNewSubject({
+        ...newSubject,
+        syllabus: [...(newSubject.syllabus || []), newUnit]
+      });
+    }
+  };
+
+  const handleRemoveUnit = (index: number, isEditing: boolean) => {
+    if (isEditing) {
+      const updatedSyllabus = [...(editingSubject.syllabus || [])];
+      updatedSyllabus.splice(index, 1);
+      setEditingSubject({ ...editingSubject, syllabus: updatedSyllabus });
+    } else {
+      const updatedSyllabus = [...(newSubject.syllabus || [])];
+      updatedSyllabus.splice(index, 1);
+      setNewSubject({ ...newSubject, syllabus: updatedSyllabus });
+    }
+  };
+
+  const handleUpdateUnit = (index: number, field: string, value: string, isEditing: boolean) => {
+    if (isEditing) {
+      const updatedSyllabus = [...(editingSubject.syllabus || [])];
+      updatedSyllabus[index] = { ...updatedSyllabus[index], [field]: value };
+      setEditingSubject({ ...editingSubject, syllabus: updatedSyllabus });
+    } else {
+      const updatedSyllabus = [...(newSubject.syllabus || [])];
+      updatedSyllabus[index] = { ...updatedSyllabus[index], [field]: value };
+      setNewSubject({ ...newSubject, syllabus: updatedSyllabus });
+    }
+  };
+
+  const handleAddTopic = (unitIndex: number, isEditing: boolean) => {
+    if (isEditing) {
+      const updatedSyllabus = [...(editingSubject.syllabus || [])];
+      updatedSyllabus[unitIndex].topics = [...updatedSyllabus[unitIndex].topics, ''];
+      setEditingSubject({ ...editingSubject, syllabus: updatedSyllabus });
+    } else {
+      const updatedSyllabus = [...(newSubject.syllabus || [])];
+      updatedSyllabus[unitIndex].topics = [...updatedSyllabus[unitIndex].topics, ''];
+      setNewSubject({ ...newSubject, syllabus: updatedSyllabus });
+    }
+  };
+
+  const handleRemoveTopic = (unitIndex: number, topicIndex: number, isEditing: boolean) => {
+    if (isEditing) {
+      const updatedSyllabus = [...(editingSubject.syllabus || [])];
+      updatedSyllabus[unitIndex].topics.splice(topicIndex, 1);
+      setEditingSubject({ ...editingSubject, syllabus: updatedSyllabus });
+    } else {
+      const updatedSyllabus = [...(newSubject.syllabus || [])];
+      updatedSyllabus[unitIndex].topics.splice(topicIndex, 1);
+      setNewSubject({ ...newSubject, syllabus: updatedSyllabus });
+    }
+  };
+
+  const handleUpdateTopic = (unitIndex: number, topicIndex: number, value: string, isEditing: boolean) => {
+    if (isEditing) {
+      const updatedSyllabus = [...(editingSubject.syllabus || [])];
+      updatedSyllabus[unitIndex].topics[topicIndex] = value;
+      setEditingSubject({ ...editingSubject, syllabus: updatedSyllabus });
+    } else {
+      const updatedSyllabus = [...(newSubject.syllabus || [])];
+      updatedSyllabus[unitIndex].topics[topicIndex] = value;
+      setNewSubject({ ...newSubject, syllabus: updatedSyllabus });
+    }
+  };
 
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +104,7 @@ export const AdminSubjects = () => {
         ...newSubject,
         createdAt: serverTimestamp()
       });
-      setNewSubject({ name: '', code: '', yearId: '' });
+      setNewSubject({ name: '', code: '', yearId: '', syllabus: [] });
       setMessage({ text: 'Subject added successfully!', type: 'success' });
     } catch (err: any) {
       setMessage({ text: err.message, type: 'error' });
@@ -67,6 +143,11 @@ export const AdminSubjects = () => {
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     }
   };
+
+  const filteredSubjects = subjects.filter(subject => 
+    subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (subject.code && subject.code.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="space-y-12 py-8">
@@ -156,6 +237,80 @@ export const AdminSubjects = () => {
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                   </div>
                 </div>
+
+                {/* Syllabus Editor */}
+                <div className="space-y-4 pt-4 border-t border-black/5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-gray-900 ml-1">Syllabus Units</label>
+                    <button
+                      type="button"
+                      onClick={() => handleAddUnit(true)}
+                      className="text-emerald-600 hover:text-emerald-700 font-bold text-xs flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Add Unit
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {(editingSubject.syllabus || []).map((unit: any, uIdx: number) => (
+                      <div key={uIdx} className="p-4 bg-gray-50 rounded-2xl space-y-4 relative">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveUnit(uIdx, true)}
+                          className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            placeholder="Unit (e.g. Unit 1)"
+                            value={unit.unit}
+                            onChange={(e) => handleUpdateUnit(uIdx, 'unit', e.target.value, true)}
+                            className="px-4 py-2 bg-white border border-black/5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Title"
+                            value={unit.title}
+                            onChange={(e) => handleUpdateUnit(uIdx, 'title', e.target.value, true)}
+                            className="px-4 py-2 bg-white border border-black/5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Topics</label>
+                            <button
+                              type="button"
+                              onClick={() => handleAddTopic(uIdx, true)}
+                              className="text-emerald-600 hover:text-emerald-700 font-bold text-[10px] flex items-center gap-1"
+                            >
+                              <Plus size={12} /> Add Topic
+                            </button>
+                          </div>
+                          {unit.topics.map((topic: string, tIdx: number) => (
+                            <div key={tIdx} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Topic name"
+                                value={topic}
+                                onChange={(e) => handleUpdateTopic(uIdx, tIdx, e.target.value, true)}
+                                className="flex-1 px-4 py-2 bg-white border border-black/5 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTopic(uIdx, tIdx, true)}
+                                className="p-1 text-gray-400 hover:text-red-500"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
               <button
                 type="submit"
@@ -208,6 +363,80 @@ export const AdminSubjects = () => {
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                   </div>
                 </div>
+
+                {/* Syllabus Editor */}
+                <div className="space-y-4 pt-4 border-t border-black/5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-gray-900 ml-1">Syllabus Units</label>
+                    <button
+                      type="button"
+                      onClick={() => handleAddUnit(false)}
+                      className="text-emerald-600 hover:text-emerald-700 font-bold text-xs flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Add Unit
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {(newSubject.syllabus || []).map((unit: any, uIdx: number) => (
+                      <div key={uIdx} className="p-4 bg-gray-50 rounded-2xl space-y-4 relative">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveUnit(uIdx, false)}
+                          className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            placeholder="Unit (e.g. Unit 1)"
+                            value={unit.unit}
+                            onChange={(e) => handleUpdateUnit(uIdx, 'unit', e.target.value, false)}
+                            className="px-4 py-2 bg-white border border-black/5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Title"
+                            value={unit.title}
+                            onChange={(e) => handleUpdateUnit(uIdx, 'title', e.target.value, false)}
+                            className="px-4 py-2 bg-white border border-black/5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Topics</label>
+                            <button
+                              type="button"
+                              onClick={() => handleAddTopic(uIdx, false)}
+                              className="text-emerald-600 hover:text-emerald-700 font-bold text-[10px] flex items-center gap-1"
+                            >
+                              <Plus size={12} /> Add Topic
+                            </button>
+                          </div>
+                          {unit.topics.map((topic: string, tIdx: number) => (
+                            <div key={tIdx} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Topic name"
+                                value={topic}
+                                onChange={(e) => handleUpdateTopic(uIdx, tIdx, e.target.value, false)}
+                                className="flex-1 px-4 py-2 bg-white border border-black/5 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTopic(uIdx, tIdx, false)}
+                                className="p-1 text-gray-400 hover:text-red-500"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
               <button
                 type="submit"
@@ -223,13 +452,25 @@ export const AdminSubjects = () => {
 
         {/* Subjects List */}
         <div className="lg:col-span-2 space-y-4">
-          <h3 className="text-xl font-bold text-gray-900 ml-2">Existing Subjects</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 ml-2 mb-6">
+            <h3 className="text-xl font-bold text-gray-900">Existing Subjects</h3>
+            <div className="relative group max-w-xs w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <input
+                type="text"
+                placeholder="Search subjects..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-white border border-black/5 rounded-2xl focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm"
+              />
+            </div>
+          </div>
           {loading.subjects ? (
             <div className="animate-pulse space-y-4">
               {[1, 2, 3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-3xl"></div>)}
             </div>
-          ) : subjects.length > 0 ? (
-            subjects.map((subject) => (
+          ) : filteredSubjects.length > 0 ? (
+            filteredSubjects.map((subject) => (
               <motion.div
                 key={subject.id}
                 layout
@@ -282,7 +523,9 @@ export const AdminSubjects = () => {
             ))
           ) : (
             <div className="text-center py-24 bg-white rounded-[2.5rem] border border-black/5">
-              <p className="text-gray-500">No subjects added yet.</p>
+              <p className="text-gray-500">
+                {searchTerm ? `No subjects found matching "${searchTerm}"` : 'No subjects added yet.'}
+              </p>
             </div>
           )}
         </div>

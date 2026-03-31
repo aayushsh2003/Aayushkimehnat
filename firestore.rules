@@ -18,6 +18,7 @@ service cloud.firestore {
     //   - yearId: string (required, ref to years)
     //   - description: string (optional, 0-500 chars)
     //   - order: number (optional)
+    //   - syllabus: list (optional, list of objects with unit, title, topics)
     //
     // Collection: resources
     // Fields:
@@ -128,12 +129,13 @@ service cloud.firestore {
     }
 
     function isValidSubject(data) {
-      return hasOnlyAllowedFields(['id', 'name', 'code', 'yearId', 'description', 'order']) &&
+      return hasOnlyAllowedFields(['id', 'name', 'code', 'yearId', 'description', 'order', 'syllabus']) &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              data.code is string && data.code.size() > 0 && data.code.size() <= 20 &&
              data.yearId is string &&
              (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
-             (!('order' in data) || data.order is number);
+             (!('order' in data) || data.order is number) &&
+             (!('syllabus' in data) || (data.syllabus is list && data.syllabus.size() <= 10));
     }
 
     function isValidResource(data) {
