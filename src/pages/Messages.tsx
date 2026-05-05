@@ -154,14 +154,20 @@ export const Messages = () => {
 
       // Update conversation metadata
       const convRef = doc(db, 'conversations', convId);
-      await setDoc(convRef, {
+      const updateData: any = {
         lastMessage: newMessage,
         lastUpdatedAt: serverTimestamp(),
-        userName: profile?.displayName || user?.email?.split('@')[0] || 'User',
-        userEmail: user?.email || '',
         unreadCountAdmin: isAdmin ? 0 : (conversations.find(c => c.id === convId)?.unreadCountAdmin || 0) + 1,
         unreadCountUser: isAdmin ? (selectedConversation?.unreadCountUser || 0) + 1 : 0
-      }, { merge: true });
+      };
+
+      // Only set user info if user is sending (not admin)
+      if (!isAdmin) {
+        updateData.userName = profile?.displayName || user?.email?.split('@')[0] || 'User';
+        updateData.userEmail = user?.email || '';
+      }
+
+      await setDoc(convRef, updateData, { merge: true });
 
       setNewMessage('');
     } catch (error) {
@@ -232,11 +238,18 @@ export const Messages = () => {
                       <p className="font-bold text-gray-900 truncate">
                         {conv.userName || conv.userEmail?.split('@')[0] || 'User'}
                       </p>
-                      {conv.unreadCountAdmin > 0 && (
-                        <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                          {conv.unreadCountAdmin}
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        {conv.lastUpdatedAt?.seconds && (
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                            {new Date(conv.lastUpdatedAt.seconds * 1000).toLocaleDateString([], { day: '2-digit', month: 'short' })}
+                          </span>
+                        )}
+                        {conv.unreadCountAdmin > 0 && (
+                          <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                            {conv.unreadCountAdmin}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-gray-500 truncate">{conv.lastMessage}</p>
                   </div>
@@ -312,7 +325,9 @@ export const Messages = () => {
                       {msg.text}
                     </div>
                     <span className="text-[10px] text-gray-400 font-mono">
-                      {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
+                      {msg.createdAt?.seconds 
+                        ? `${new Date(msg.createdAt.seconds * 1000).toLocaleDateString([], { day: '2-digit', month: 'short' })} ${new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` 
+                        : 'Sending...'}
                     </span>
                   </motion.div>
                 );
